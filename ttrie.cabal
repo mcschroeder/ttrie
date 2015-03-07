@@ -1,0 +1,27 @@
+name:                ttrie
+version:             0.1.0.0
+synopsis:            Contention-free STM hash map
+-- description:
+homepage:            http://github.com/mcschroeder/ttrie
+bug-reports:         http://github.com/mcschroeder/ttrie/issues
+license:             MIT
+license-file:        LICENSE
+author:              Michael Schröder
+maintainer:          mc.schroeder@gmail.com
+copyright:           (c) 2014-2015 Michael Schröder
+category:            Concurrency
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Control.Concurrent.STM.Map
+  other-modules:       Data.SparseArray
+  build-depends:       base >=4.7 && <4.8
+                     , atomic-primops ==0.6.*
+                     , hashable ==1.2.*
+                     , primitive ==0.5.*
+                     , stm >=2
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall
