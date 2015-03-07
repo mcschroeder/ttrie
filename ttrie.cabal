@@ -15,13 +15,69 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
+  hs-source-dirs:      src
   exposed-modules:     Control.Concurrent.STM.Map
   other-modules:       Data.SparseArray
+
   build-depends:       base >=4.7 && <4.8
                      , atomic-primops ==0.6.*
                      , hashable ==1.2.*
                      , primitive ==0.5.*
                      , stm >=2
-  hs-source-dirs:      src
+
   default-language:    Haskell2010
   ghc-options:         -Wall
+
+
+benchmark performance
+  hs-source-dirs:      benchmarks
+  main-is:             Performance.hs
+  other-modules:       BenchGen, Common
+  type:                exitcode-stdio-1.0
+
+  build-depends:       base
+                     , async
+                     , criterion >= 1.0
+                     , deepseq
+                     , hashable
+                     , stm
+                     , stm-containers
+                     , text
+                     , ttrie
+                     , unordered-containers
+
+                     , mwc-random
+                     , containers
+                     , transformers
+                     , vector
+                     , primitive
+                     , bifunctors
+
+  ghc-options: -O2 -threaded -with-rtsopts=-N
+
+
+benchmark retries
+  hs-source-dirs:      benchmarks
+  main-is:             Retries.hs
+  other-modules:       BenchGen, Common
+  type:                exitcode-stdio-1.0
+
+  build-depends:       base
+                     , async
+                     , deepseq
+                     , hashable
+                     , stm
+                     , stm-containers
+                     , stm-stats
+                     , text
+                     , ttrie
+                     , unordered-containers
+
+                     , mwc-random
+                     , containers
+                     , transformers
+                     , vector
+                     , primitive
+                     , bifunctors
+
+  ghc-options: -O2 -threaded -with-rtsopts=-N
