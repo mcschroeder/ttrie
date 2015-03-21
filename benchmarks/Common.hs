@@ -14,6 +14,7 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics
+import System.Environment
 import System.Random.MWC
 import System.Random.MWC.CondensedTable
 import Text.Printf
@@ -21,6 +22,70 @@ import Text.Printf
 import qualified Control.Concurrent.STM.Map as TTrie
 import qualified STMContainers.Map as STMCont
 import qualified Data.HashMap.Strict as HashMap
+
+------------------------------------------------------------------------------
+
+commonMain :: ([Int] -> Int -> CondensedTableV Int -> Config IO Op Key -> IO ()) -> IO ()
+commonMain f = do
+    (arg1:arg2:arg3:arg4:args) <- getArgs
+    printf "threads = %s\nnumTransactions = %s\nsizes = %s\nops = %s\n" arg1 arg2 arg3 arg4
+    let threads = read arg1
+        numTransactions = read arg2
+        sizes = mkTable $ read arg3
+        (inserts,lookups,deletes) = read arg4
+        config = Config
+            { operations = mkTable [ (Insert, inserts)
+                                   , (Lookup, lookups)
+                                   , (Delete, deletes)
+                                   ]
+            , keys = \op -> case op of
+                Insert -> mkTable [(remember key,       1)]
+                Lookup -> mkTable [(reuse key,          1)]
+                Delete -> mkTable [(forget (reuse key), 1)]
+            }
+    withArgs args $ f threads numTransactions sizes config
+
+genTransactions :: Int -> Int -> CondensedTableV Int -> Config IO Op Key -> IO ([Key],[Transaction])
+genTransactions numPrefill numTransactions sizes config = do
+    printf "Generating %d random keys to prefill and %d random transactions...\n" numPrefill numTransactions
+    gen <- create
+    runGenerator gen $ do
+        ks <- replicateM numPrefill (remember key)
+        txs <- replicateM numTransactions $ do
+            size <- liftGen $ genFromTable sizes
+            generateOperations config size
+        return (ks,txs)
+
+bthreads :: [Int] -> Int -> [Transaction] -> ([[Transaction]] -> [Benchmark]) -> Benchmark
+bthreads threads numTransactions txs bs = bgroup ""
+    $ flip map threads
+    $ \n -> env (return $ split (numTransactions `div` n) txs)
+    $ \ ~ops -> bgroup (printf "%d/%d" n (numTransactions `div` n))
+    $ bs ops
+
+runBench :: [[Transaction]] -> (Op -> Key -> c -> STM ()) -> c -> IO ()
+runBench ops f c = void $ mapConcurrently (mapM_ txEval) ops
+  where txEval = atomically . mapM_ (\(op,k) -> f op k c)
+
+runStats :: String -> [[Transaction]] -> (Op -> Key -> c -> STM ()) -> c -> IO ()
+runStats name ops f c = do
+    printf "collecting retry statistics for %s\n" name
+    mapConcurrently (mapM_ txEval) ops
+    printStats name
+  where
+    txEval = atomically' name . mapM_ (\(op,k) -> f op k c)
+    atomically' = trackSTMConf defaultTrackSTMConf
+                        { tryThreshold = Nothing
+                        , globalTheshold = Nothing
+                        }
+    printStats name = do
+        stats <- getSTMStats
+        let Just (commits, retries) = Map.lookup name stats
+        printf "Commits\t%d\nRetries\t%d\n\n" commits retries
+
+split :: Int -> [a] -> [[a]]
+split n [] = []
+split n xs = let (ys,zs) = splitAt n xs in ys : split n zs
 
 ------------------------------------------------------------------------------
 
@@ -39,73 +104,6 @@ key = do
   where
     length = mkTable $ zip [7..20] (repeat 1)
     alphabet = mkTable $ zip ['a'..'z'] (repeat 1)
-
-------------------------------------------------------------------------------
-
-runAll :: [Int] -> Int -> Int -> CondensedTableV Int -> Config IO Op Key -> IO ()
-runAll numThreads numPrefill numTransactions sizes config = do
-    (ks,txs) <- genTransactions numPrefill numTransactions sizes config
-    runBenchmarks ks txs numTransactions numThreads
-    collectRetryStats ks txs numTransactions numThreads
-
-genTransactions :: Int -> Int -> CondensedTableV Int -> Config IO Op Key -> IO ([Key],[Transaction])
-genTransactions numPrefill numTransactions sizes config = do
-    printf "Generating %d random keys to prefill and %d random transactions...\n" numPrefill numTransactions
-    gen <- create
-    runGenerator gen $ do
-        ks <- replicateM numPrefill (remember key)
-        txs <- replicateM numTransactions $ do
-            size <- liftGen $ genFromTable sizes
-            generateOperations config size
-        return (ks,txs)
-
-runBenchmarks :: [Key] -> [Transaction] -> Int -> [Int] -> IO ()
-runBenchmarks ks txs numTransactions numThreads =
-    defaultMain $! flip map numThreads
-         $ \n -> env (mkEnv ks txs numTransactions n)
-         $ \ ~(hashmap,stmcont,ttrie,ops) -> bgroup (printf "%d/%d" n (numTransactions `div` n))
-         [ bench "unordered-containers" $ whnfIO $ run ops hashmapEval hashmap
-         , bench "stm-containers"       $ whnfIO $ run ops stmcontEval stmcont
-         , bench "ttrie"                $ whnfIO $ run ops ttrieEval ttrie
-         ]
-  where
-    run ops f c = mapConcurrently (mapM_ txEval) ops
-      where txEval = atomically . mapM_ (\(op,k) -> f op k c)
-
-collectRetryStats :: [Key] -> [Transaction] -> Int -> [Int] -> IO ()
-collectRetryStats ks txs numTransactions numThreads =
-    flip mapM_ numThreads $ \n -> do
-        (hashmap,stmcont,ttrie,ops) <- mkEnv ks txs numTransactions n
-        let str = printf "%d/%d" n (numTransactions `div` n)
-        run (str++"/unordered-containers") ops hashmapEval hashmap
-        run (str++"/stm-containers")       ops stmcontEval stmcont
-        run (str++"/ttrie")                ops ttrieEval ttrie
-  where
-    run name ops f c = do
-        printf "collecting retry statistics for %s\n" name
-        mapConcurrently (mapM_ txEval) ops
-        printStats name
-      where
-        txEval = atomically' name . mapM_ (\(op,k) -> f op k c)
-        atomically' = trackSTMConf defaultTrackSTMConf
-                            { tryThreshold = Nothing
-                            , globalTheshold = Nothing
-                            }
-        printStats name = do
-            stats <- getSTMStats
-            let Just (commits, retries) = Map.lookup name stats
-            printf "Commits\t%d\nRetries\t%d\n\n" commits retries
-
-mkEnv ks txs numTransactions n = do
-  printf "Creating new containers with %d keys prefilled...\n" (length ks)
-  hashmap <- hashmapPrefill ks
-  stmcont <- stmcontPrefill ks
-  ttrie <- ttriePrefill ks
-  ops <- return $! split (numTransactions `div` n) txs
-  return $! (hashmap,stmcont,ttrie,ops)
-
-split n [] = []
-split n xs = let (ys,zs) = splitAt n xs in ys : split n zs
 
 ------------------------------------------------------------------------------
 -- Evaluation functions

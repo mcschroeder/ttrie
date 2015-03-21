@@ -18,21 +18,21 @@ main = do
     let numPrefill = read arg1
     withArgs args $ commonMain $ \threads numTransactions sizes config -> do
         (ks,txs) <- genTransactions numPrefill numTransactions sizes config
-        runBenchmarks1 ks txs numTransactions threads
-        collectRetryStats1 ks txs numTransactions threads
+        runBenchmarks2 ks txs numTransactions threads
+        collectRetryStats2 ks txs numTransactions threads
 
-runBenchmarks1 :: [Key] -> [Transaction] -> Int -> [Int] -> IO ()
-runBenchmarks1 ks txs numTransactions threads = defaultMain
-    [ env (prefill ks) $ \ ~(hashmap,stmcont,ttrie) ->
-        bthreads threads numTransactions txs $ \ops ->
-        [ bench "unordered-containers" $ whnfIO $ runBench ops hashmapEval hashmap
-        , bench "stm-containers"       $ whnfIO $ runBench ops stmcontEval stmcont
-        , bench "ttrie"                $ whnfIO $ runBench ops ttrieEval ttrie
+runBenchmarks2 :: [Key] -> [Transaction] -> Int -> [Int] -> IO ()
+runBenchmarks2 ks txs numTransactions threads = defaultMain
+    [ bench "prefill" $ whnfIO $ prefill ks
+    , bthreads threads numTransactions txs $ \ops ->
+        [ bench "unordered-containers" $ whnfIO $ prefill ks >>= \(hashmap,_,_) -> runBench ops hashmapEval hashmap
+        , bench "stm-containers"       $ whnfIO $ prefill ks >>= \(_,stmcont,_) -> runBench ops stmcontEval stmcont
+        , bench "ttrie"                $ whnfIO $ prefill ks >>= \(_,_,ttrie)   -> runBench ops ttrieEval ttrie
         ]
     ]
 
-collectRetryStats1 :: [Key] -> [Transaction] -> Int -> [Int] -> IO ()
-collectRetryStats1 ks txs numTransactions threads = do
+collectRetryStats2 :: [Key] -> [Transaction] -> Int -> [Int] -> IO ()
+collectRetryStats2 ks txs numTransactions threads = do
     cs@(hashmap,stmcont,ttrie) <- prefill ks
     evaluate (rnf cs)
     forM_ threads $ \n -> do
@@ -43,8 +43,9 @@ collectRetryStats1 ks txs numTransactions threads = do
         runStats (str++"/ttrie")                ops ttrieEval ttrie
 
 prefill ks = do
-    printf "Creating containers with %d keys prefilled...\n" (length ks)
     hashmap <- hashmapPrefill ks
     stmcont <- stmcontPrefill ks
     ttrie <- ttriePrefill ks
-    return $! (hashmap,stmcont,ttrie)
+    let cs = (hashmap,stmcont,ttrie)
+    evaluate (rnf cs)
+    return cs
