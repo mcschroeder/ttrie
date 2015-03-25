@@ -4,6 +4,7 @@ module BenchGen where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.IO.Class
 import Control.Monad.Primitive
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
@@ -18,6 +19,9 @@ import System.Random.MWC.CondensedTable
 
 newtype Generator m k a = Generator { unG :: StateT (Gen (PrimState m), Set k) m a }
   deriving (Functor, Applicative, Monad)
+
+instance MonadIO m => MonadIO (Generator m k) where
+    liftIO = Generator . liftIO
 
 runGenerator :: PrimMonad m => Gen (PrimState m) -> Generator m k a -> m a
 runGenerator gen (Generator m) = evalStateT m (gen, Set.empty)

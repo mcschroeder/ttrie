@@ -29,29 +29,11 @@ library
   ghc-options:         -Wall
 
 
-benchmark bench0
+benchmark bench
   hs-source-dirs:      benchmarks
-  main-is:             Bench0.hs
-  other-modules:       BenchGen, Common
+  main-is:             Bench.hs
+  other-modules:       BenchGen
   type:                exitcode-stdio-1.0
   build-depends:
-    base, async, criterion >= 1.0, deepseq, hashable, stm, stm-containers, stm-stats, text, ttrie, unordered-containers, mwc-random, containers, transformers, vector, primitive, bifunctors
-  ghc-options: -O2 -threaded -with-rtsopts=-N
-
-benchmark bench1
-  hs-source-dirs:      benchmarks
-  main-is:             Bench1.hs
-  other-modules:       BenchGen, Common
-  type:                exitcode-stdio-1.0
-  build-depends:
-    base, async, criterion >= 1.0, deepseq, hashable, stm, stm-containers, stm-stats, text, ttrie, unordered-containers, mwc-random, containers, transformers, vector, primitive, bifunctors
-  ghc-options: -O2 -threaded -with-rtsopts=-N
-
-benchmark bench2
-  hs-source-dirs:      benchmarks
-  main-is:             Bench2.hs
-  other-modules:       BenchGen, Common
-  type:                exitcode-stdio-1.0
-  build-depends:
-    base, async, criterion >= 1.0, deepseq, hashable, stm, stm-containers, stm-stats, text, ttrie, unordered-containers, mwc-random, containers, transformers, vector, primitive, bifunctors
+    base, async, criterion-plus, deepseq, hashable, stm, stm-containers, stm-stats, text, ttrie, unordered-containers, mwc-random, containers, transformers, vector, primitive, bifunctors
   ghc-options: -O2 -threaded -with-rtsopts=-N
