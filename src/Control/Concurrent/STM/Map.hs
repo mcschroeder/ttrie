@@ -1,13 +1,27 @@
 {-# LANGUAGE PatternGuards #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
+
+-----------------------------------------------------------------------
+-- | A contention-free STM hash map.
+-- \"Contention-free\" means that the map will never cause spurious conflicts.
+-- A transaction operating on the map will only ever have to retry if
+-- another transaction is operating on the same key at the same time.
+-----------------------------------------------------------------------
+
 module Control.Concurrent.STM.Map
     ( Map
+
+      -- * Construction
     , empty
+
+      -- * Modification
     , insert
-    , lookup
     , delete
-    , phantomLookup
     , unsafeDelete
+
+      -- * Query
+    , lookup
+    , phantomLookup
     ) where
 
 import Control.Applicative ((<$>))
@@ -39,27 +53,38 @@ data Leaf k v = Leaf !k !(TVar (Maybe v))
 
 -----------------------------------------------------------------------
 
--- | /O(1)/. The empty map.
+-- | /O(1)/. Construct an empty map.
 empty :: STM (Map k v)
 empty = unsafeIOToSTM $ Map <$> newIORef (Array emptyArray)
 {-# INLINE empty #-}
 
+-- | /O(log n)/. Associate the given value with the given key.
+-- If the key is already present in the map, the old value is replaced.
 insert :: (Eq k, Hashable k) => k -> v -> Map k v -> STM ()
 insert k v m = do var <- getTVar k m
                   writeTVar var (Just v)
-
 {-# INLINABLE insert #-}
 
+-- | /O(log n)/. Return the value associated with the given key, or 'Nothing'.
+--
+-- __Note__: This might increase the map's memory consumption
+-- by putting the key into the map.
+-- If that is not acceptable, use 'phantomLookup'.
 lookup :: (Eq k, Hashable k) => k -> Map k v -> STM (Maybe v)
 lookup k m = do var <- getTVar k m
                 readTVar var
-
 {-# INLINABLE lookup #-}
 
+-- | /O(log n)/. Remove the value associated with a given key from the map,
+-- if present.
+--
+-- __Note__: This does not actually remove the key from the map.
+-- In fact, it might actually increase the map's memory consumption
+-- by putting the key into the map.
+-- To completely delete an entry, including its key, use 'unsafeDelete'.
 delete :: (Eq k, Hashable k) => k -> Map k v -> STM ()
 delete k m = do var <- getTVar k m
                 writeTVar var Nothing
-
 {-# INLINABLE delete #-}
 
 -----------------------------------------------------------------------
@@ -112,6 +137,20 @@ getTVar k (Map root) = go root 0 undefined
 {-# INLINE getTVar #-}
 
 
+-- | /O(log n)/. Return the value associated with the given key, or 'Nothing'.
+--
+-- In contrast to 'lookup', this will never increase the map's memory consumption.
+-- However, it might allow /phantom reads/ to occur.
+-- Consider the following situation:
+--
+-- > f = atomically $ do v1 <- phantomLookup k m
+-- >                     v2 <- phantomLookup k m
+-- >                     return (v1 == v2)
+--
+-- Under certain circumstances @f@ might actually return @False@, in particular
+-- if the first @phantomLookup@ happens on an empty map
+-- and some other transaction inserts a value for @k@ before the second call
+-- to @phantomLookup@.
 phantomLookup :: (Eq k, Hashable k) => k -> Map k v -> STM (Maybe v)
 phantomLookup k (Map root) = go root 0 undefined
   where
@@ -133,6 +172,9 @@ phantomLookup k (Map root) = go root 0 undefined
 {-# INLINABLE phantomLookup #-}
 
 
+-- | /O(log n)/. This will completely remove a given key
+-- and its associated value from the map, if present.
+-- This is not an atomic operation, however. __Use with caution!__
 unsafeDelete :: (Eq k, Hashable k) => k -> Map k v -> IO ()
 unsafeDelete k m@(Map root) = do
     ok <- go root 0 undefined
