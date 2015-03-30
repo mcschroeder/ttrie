@@ -1,7 +1,12 @@
 name:                ttrie
-version:             0.1.0.0
+version:             0.1
 synopsis:            Contention-free STM hash map
--- description:
+description:
+  A contention-free STM hash map.
+  It is basically a /lock-free concurrent hash trie/ (aka /Ctrie/) lifted into STM.
+  .
+  For a detailed discussion, including an evaluation of its performance,
+  see Chapter 4 of <https://github.com/mcschroeder/thesis my master's thesis>.
 homepage:            http://github.com/mcschroeder/ttrie
 bug-reports:         http://github.com/mcschroeder/ttrie/issues
 license:             MIT
@@ -14,26 +19,29 @@ build-type:          Simple
 extra-source-files:  README.md, benchmarks/run.sh
 cabal-version:       >=1.10
 
+source-repository head
+  type: git
+  location: https://github.com/mcschroeder/ttrie.git
+
 library
   hs-source-dirs:      src
   exposed-modules:     Control.Concurrent.STM.Map
   other-modules:       Data.SparseArray
-
-  build-depends:       base >=4.7 && <4.8
-                     , atomic-primops ==0.6.*
-                     , hashable ==1.2.*
-                     , primitive ==0.5.*
-                     , stm >=2
-
   default-language:    Haskell2010
   ghc-options:         -Wall
-
+  build-depends:       base >=4.7 && <4.8
+                     , atomic-primops >=0.6
+                     , hashable >=1.2
+                     , primitive >=0.5
+                     , stm >=2
 
 benchmark bench
   hs-source-dirs:      benchmarks
   main-is:             Bench.hs
   other-modules:       BenchGen
   type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  ghc-options:         -O2 -threaded -with-rtsopts=-N
   build-depends:
-    base, async, criterion-plus, deepseq, hashable, stm, stm-containers, stm-stats, text, ttrie, unordered-containers, mwc-random, containers, transformers, vector, primitive, bifunctors
-  ghc-options: -O2 -threaded -with-rtsopts=-N
+    base, async, bifunctors, containers, criterion-plus, deepseq, mwc-random, primitive, stm, stm-containers, stm-stats, text, transformers, ttrie, unordered-containers, vector
+
