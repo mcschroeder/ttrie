@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -funbox-strict-fields #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Data.SparseArray
     ( SparseArray
@@ -6,7 +7,7 @@ module Data.SparseArray
     , Level, down, up, lastLevel
     , emptyArray, mkSingleton, mkPair
     , arrayLookup, arrayInsert, arrayUpdate, arrayDelete
-    , arrayMapM, arrayToMaybe
+    , arrayMapM, arrayFoldM', arrayToMaybe
     ) where
 
 import Control.Monad.ST
@@ -136,6 +137,19 @@ arrayMapM f = \(SparseArray bmp arr) -> do
             go n arr marr (i+1)
 
 {-# INLINE arrayMapM #-}
+
+arrayFoldM' :: (b -> a -> IO b) -> b -> SparseArray a -> IO b
+arrayFoldM' f z0 = \(SparseArray bmp arr) -> do
+    let n = popCount bmp
+    go n arr 0 z0
+  where
+    go n arr i !z
+        | i >= n = return z
+        | otherwise = do
+            x <- indexArrayM arr i
+            go n arr (i+1) =<< f z x
+
+{-# INLINE arrayFoldM' #-}
 
 arrayToMaybe :: SparseArray a -> Maybe a
 arrayToMaybe (SparseArray bmp arr) =
