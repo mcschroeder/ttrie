@@ -22,6 +22,10 @@ module Control.Concurrent.STM.Map
       -- * Query
     , lookup
     , phantomLookup
+
+      -- * Lists
+    , fromList
+    , unsafeToList
     ) where
 
 import Control.Applicative ((<$>))
@@ -280,3 +284,35 @@ listDelete k1 = go
     go [] = []
     go (x@(Leaf k2 _):xs) | k1 == k2  = xs
                           | otherwise = x : go xs
+
+-----------------------------------------------------------------------
+
+-- | /O(n * log n)/. Construct a map from a list of key/value pairs.
+fromList :: (Eq k, Hashable k) => [(k,v)] -> IO (Map k v)
+fromList xs = do
+    m <- atomically empty
+    forM_ xs $ \(k,v) -> atomically (insert k v m)
+    return m
+
+-- | /O(n)/. Unsafely convert the map to a list of key/value pairs.
+--
+-- __Warning__: 'unsafeToList' makes no atomicity guarantees. Concurrent
+-- changes to the map will lead to inconsistent results.
+unsafeToList :: Map k v -> IO [(k,v)]
+unsafeToList (Map root) = go root
+  where
+    go inode = do
+        node <- readIORef inode
+        case node of
+            Array a -> arrayFoldM' go2 [] a
+            List xs -> foldM go3 [] xs
+            Tomb leaf -> go3 [] leaf
+
+    go2 xs (I inode) = go inode >>= \ys -> return (ys ++ xs)
+    go2 xs (L leaf) = go3 xs leaf
+
+    go3 xs (Leaf k var) = do
+        v <- readTVarIO var
+        case v of
+            Nothing -> return xs
+            Just v' -> return $ (k,v') : xs
