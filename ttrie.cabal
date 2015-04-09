@@ -23,6 +23,8 @@ build-type:          Simple
 extra-source-files:  README.md, benchmarks/run.sh
 cabal-version:       >=1.10
 
+extra-source-files:  changelog.md
+
 source-repository head
   type: git
   location: https://github.com/mcschroeder/ttrie.git
