@@ -22,6 +22,7 @@ module Control.Concurrent.STM.Map
       -- * Query
     , lookup
     , phantomLookup
+    , member
 
       -- * Lists
     , fromList
@@ -90,6 +91,16 @@ delete :: (Eq k, Hashable k) => k -> Map k v -> STM ()
 delete k m = do var <- getTVar k m
                 writeTVar var Nothing
 {-# INLINABLE delete #-}
+
+-----------------------------------------------------------------------
+
+-- |/O(log n)/. Is the key a member of the map?
+member :: (Eq k, Hashable k) => k -> Map k v -> STM Bool
+member k m = do
+    v <- lookup k m
+    case v of
+        Nothing -> return False
+        Just _  -> return True
 
 -----------------------------------------------------------------------
 
