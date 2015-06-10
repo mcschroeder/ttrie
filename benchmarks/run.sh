@@ -13,11 +13,11 @@ main() {
     bench $THREADS $NUM_TX "[(1,1)]" $NUM_TX "(0,0,0,1)" "results/1/delete"
 
     mkdir -p "results/5"
-    bench $THREADS $NUM_TX $TX_SIZE 0            "(70,10,10,10)" "results/update/5/insert"
-    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(10,70,10,10)" "results/update/5/update"
-    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(10,10,70,10)" "results/update/5/lookup"
-    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(10,10,10,70)" "results/update/5/delete"    
-    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(25,25,25,25)" "results/update/5/balanced-prefill"
+    bench $THREADS $NUM_TX $TX_SIZE 0            "(70,10,10,10)" "results/5/insert"
+    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(10,70,10,10)" "results/5/update"
+    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(10,10,70,10)" "results/5/lookup"
+    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(10,10,10,70)" "results/5/delete"
+    bench $THREADS $NUM_TX $TX_SIZE $NUM_PREFILL "(25,25,25,25)" "results/5/balanced"
 
 #    sudo shutdown -h now
 }

@@ -181,20 +181,13 @@ stmcontEval Delete k = STMCont.delete k
 
 instance (NFData a) => NFData (TVar a)
 
-hashmapPrefill :: PrefillFunc (TVar (HashMap.HashMap Key (TVar ())))
+hashmapPrefill :: PrefillFunc (TVar (HashMap.HashMap Key ()))
 hashmapPrefill ks = do
-  elems <- forM ks (\k -> newTVarIO () >>= \v -> return (k,v))
-  m <- newTVarIO $ HashMap.fromList elems
+  let m = HashMap.fromList $ zip ks $ repeat ()
   evaluate (rnf m)
-  return m
+  newTVarIO m
 
-hashmapEval :: EvalFunc (TVar (HashMap.HashMap Key (TVar ())))
-hashmapEval Lookup k m = do
-  v <- HashMap.lookup k <$> readTVar m
-  case v of
-    Just v -> void $ readTVar v
-    Nothing -> return ()
-hashmapEval Insert k m = do
-  v <- newTVar ()
-  modifyTVar' m (HashMap.insert k v)
+hashmapEval :: EvalFunc (TVar (HashMap.HashMap Key ()))
+hashmapEval Lookup k m = void $ HashMap.lookup k <$> readTVar m
+hashmapEval Insert k m = modifyTVar' m (HashMap.insert k ())
 hashmapEval Delete k m = modifyTVar' m (HashMap.delete k)
