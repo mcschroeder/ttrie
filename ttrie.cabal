@@ -1,5 +1,5 @@
 name:                ttrie
-version:             0.1.2
+version:             0.1.2.1
 synopsis:            Contention-free STM hash map
 description:
   A contention-free STM hash map.
@@ -48,9 +48,9 @@ test-suite map-properties
 
   build-depends:
       base
-    , QuickCheck ==2.5.*
-    , test-framework ==0.8.*
-    , test-framework-quickcheck2 ==0.3.*
+    , QuickCheck >=2.5
+    , test-framework >=0.8
+    , test-framework-quickcheck2 >=0.3
     , containers >=0.5
     , hashable >=1.2
     , stm

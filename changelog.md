@@ -1,3 +1,6 @@
+# 0.1.2.1 (November 2015)
+	* Loosen test-suite dependency bounds
+
 # 0.1.2  (May 2015)
     * Add a 'member' convenience function
 
