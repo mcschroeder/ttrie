@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 
@@ -29,7 +30,9 @@ module Control.Concurrent.STM.Map
     , unsafeToList
     ) where
 
+#if __GLASGOW_HASKELL__ < 710
 import Control.Applicative ((<$>))
+#endif
 import Control.Concurrent.STM
 import Control.Monad
 import Data.Atomics
