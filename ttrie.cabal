@@ -1,5 +1,5 @@
 name:                ttrie
-version:             0.1.2.1
+version:             0.1.2.2
 synopsis:            Contention-free STM hash map
 description:
   A contention-free STM hash map.

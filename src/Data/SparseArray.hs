@@ -14,7 +14,7 @@ import Control.Monad.ST
 import Data.Bits
 import Data.Hashable (Hashable)
 import qualified Data.Hashable as H
-import Data.Primitive.Array
+import Data.Primitive.Array hiding (emptyArray)
 import Data.Word
 import Prelude hiding (lookup, mapM)
 
